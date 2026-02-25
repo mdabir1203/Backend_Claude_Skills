@@ -1,4 +1,4 @@
-# 🚀 Claude Code Skills — Business Value
+# 🚀 Claude Code Skills — Backend Systems with Business Value
 
 > **Turn AI skills into real-world business outcomes.**
 > This repository shows how structured Claude Code skills translate directly into measurable value across products, operations, marketing, and growth.
