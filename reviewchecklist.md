@@ -1,104 +1,110 @@
-# Backend Review Checklist
-Security & Latency Approval Gate (Mechanism Verified)
+Security & Latency Approval Gate (Final)
 
-This checklist verifies both:
-- Outcome compliance
-- Underlying mechanism correctness
+1. Architecture
 
-Deployment is blocked if any critical item is unchecked.
-
----
-
-# 1. Architecture
-
-[ ] System classification documented
-[ ] Consistency model defined
-[ ] Latency budget defined
+[ ] Workload classification documented
+[ ] Traffic shape defined
+[ ] Consistency boundaries defined
 [ ] Scaling strategy documented
-[ ] Failure modes documented
-[ ] Mechanism explanations included (not just framework names)
+[ ] Failure mode matrix complete
+[ ] Mechanism explanations included
 
----
+2. Latency Discipline
 
-# 2. Latency Discipline
-
-[ ] p95 within budget
-[ ] p99 < 2x budget
+[ ] Latency budget defined
+[ ] p95 within SLO
+[ ] p99 < 2× SLO
+[ ] Tail latency metrics instrumented
 [ ] All external calls have timeouts
-[ ] Retries capped
+[ ] Retries capped and jittered
+[ ] Retry budget enforced
 [ ] Circuit breakers implemented
 [ ] Blocking I/O avoided
 [ ] Cold start measured
-[ ] Payload minimized
+[ ] Payload size limits enforced
 
----
+3. Database Mechanics
 
-# 3. Database Mechanics
-
-[ ] All queries indexed
-[ ] EXPLAIN reviewed
-[ ] No full table scans
+[ ] All high-QPS queries indexed
+[ ] EXPLAIN plans reviewed
+[ ] No full table scans in hot paths
+[ ] Query guardrails active
 [ ] No N+1 patterns
-[ ] p95 DB query < 50ms
-[ ] Connection pooling tuned
+[ ] p95 DB query < 50ms (or justified)
+[ ] Connection pool telemetry exposed
+[ ] Pool saturation monitored
+[ ] Hot shard detection (if sharded)
 
----
+4. Security Enforcement
 
-# 4. Security Enforcement
-
+[ ] TLS enforced
 [ ] JWT signature verified
-[ ] Expiration validated
-[ ] Audience & issuer validated
+[ ] exp validated
+[ ] nbf validated
+[ ] issuer validated
+[ ] audience validated
+[ ] algorithm allow-listed
 [ ] Explicit permission checks
-[ ] Input schema validation enforced
+[ ] Input schema enforced
 [ ] Unknown fields rejected
 [ ] Payload size limited
-[ ] Rate limiting enforced
-[ ] Secrets managed externally
+[ ] Rate limiting active
+[ ] Secrets externally managed
 [ ] No secrets in logs
 
----
-
-# 5. Threat Model
+5. Threat Model
 
 [ ] Assets identified
-[ ] Attackers defined
+[ ] Attacker classes defined
 [ ] Entry points listed
 [ ] Trust boundaries mapped
-[ ] Worst-case breach scenario defined
+[ ] Worst-case breach documented
+[ ] Blast radius analyzed
 [ ] Mitigations documented
 
----
+6. Observability
 
-# 6. Observability
-
+[ ] Golden signals instrumented
 [ ] p50/p95/p99 monitored
-[ ] 4xx/5xx monitored
+[ ] 4xx monitored
+[ ] 5xx monitored
 [ ] Auth failures monitored
+[ ] Retry rate monitored
 [ ] Structured logging enabled
-[ ] Request IDs propagated
-[ ] Alert thresholds defined
-[ ] Alert thresholds tested
+[ ] Trace propagation verified
+[ ] Alert matrix defined
+[ ] Alerts tested
 
----
+7. Resilience
 
-# 7. Deployment Hardening
+[ ] Circuit breakers active
+[ ] Load shedding implemented
+[ ] Backpressure enforced
+[ ] Graceful degradation defined
+[ ] Control knobs exposed
+[ ] Retry storm protection active
+
+8. Deployment Hardening
 
 [ ] Non-root containers
 [ ] Minimal base image
 [ ] Read-only filesystem
+[ ] seccomp applied
+[ ] no-new-privileges set
+[ ] Resource limits defined
 [ ] Security groups restricted
 [ ] No public database access
-[ ] mTLS for service-to-service (if multi-service)
+[ ] Network allowlists enforced
+[ ] mTLS enabled (if multi-service)
 
----
+FINAL GATE
 
-# Final Gate
-
-Security: PASS / FAIL  
-Latency: PASS / FAIL  
-Observability: PASS / FAIL  
-Resilience: PASS / FAIL  
-Mechanism Verified: PASS / FAIL  
+Security: PASS / FAIL
+Latency: PASS / FAIL
+Observability: PASS / FAIL
+Resilience: PASS / FAIL
+Control Loops: PASS / FAIL
+Tail Safety: PASS / FAIL
+Mechanism Verified: PASS / FAIL
 
 If any FAIL → deployment blocked.
