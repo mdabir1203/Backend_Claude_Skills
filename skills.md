@@ -1,393 +1,553 @@
-# Backend Systems Skill
-Secure, low-latency, production-grade backend architecture framework.
+Purpose
 
-This document defines:
-- Architectural requirements
-- Security guarantees
-- Latency discipline
-- Fundamental syntax-level implementation rules
-- Measurable outcome expectations
+Define a secure, low-latency, production-grade backend architecture standard that is:
 
-A backend system is incomplete if it cannot explain both:
-1. WHAT it does
-2. HOW it works at the protocol, runtime, and query level
+measurable
 
----
+enforceable
 
-# Core Principles
+observable
 
-1. Secure by default (fail closed).
-2. Latency is a feature.
-3. Every performance claim must be measurable.
-4. Minimize surface area.
-5. Observability is mandatory.
-6. Mechanism clarity > framework abstraction.
+failure-aware
 
----
+control-tunable
 
-# SECTION 1 — SYSTEM CLASSIFICATION
+A backend system is incomplete if it cannot explain:
 
-Before writing code, define:
+WHAT it does
 
-## Workload Type
-- Read-heavy API
-- Write-heavy transactional
-- Streaming
-- Batch
-- Hybrid
+HOW it works (protocol/runtime/query)
 
-## Consistency Model
-- Strong (synchronous commit)
-- Eventual (async propagation)
-- Hybrid (boundaries documented)
+WHEN it fails
 
-## Scale Expectation
-- < 10k daily users
-- 10k–1M
-- 1M+
-- Unbounded
+HOW it self-recovers
 
-Reason:
-Consistency and scale determine replication strategy,
-locking strategy, and caching topology.
+CORE PRINCIPLES
 
----
+Secure by default (fail closed)
 
-# SECTION 2 — LATENCY FUNDAMENTALS
+Latency is a product feature
 
-## Define a Latency Budget
+Tail latency is first-class
 
-Example:
+Every claim must be measurable
+
+Minimize attack surface and blast radius
+
+Observability must enable causal debugging
+
+Every critical subsystem must expose control knobs
+
+SECTION 1 — SYSTEM CLASSIFICATION
+Workload Profile (Required)
+
+Document:
+
+workload type (read-heavy / write-heavy / streaming / batch / hybrid)
+
+traffic shape (steady / spiky / diurnal / adversarial)
+
+current peak QPS
+
+projected 12-month QPS
+
+worst-case spike multiplier
+
+Mechanism Requirement
+
+Autoscaling policy must reference the workload shape.
+
+Consistency Model (Required)
+
+Define explicitly:
+
+strong consistency zones
+
+eventual consistency zones
+
+async boundaries
+
+reconciliation mechanism
+
+maximum tolerated staleness window
+
+Failure to define boundaries → design invalid
+
+Scaling Strategy (Required)
+
+Must specify:
+
+horizontal vs vertical
+
+shard key (if applicable)
+
+cache topology
+
+read replica policy
+
+backpressure strategy
+
+Failure Mode Matrix (Required)
+
+Every critical component must document:
+
+Component	Failure Mode	Detection Signal	Automatic Mitigation	User Impact
+
+System without this → not production-ready
+
+SECTION 2 — LATENCY DISCIPLINE
+Latency Budget (Required)
+
+Example structure:
 
 Total Budget: 100ms
-- Network handshake: 20ms
-- TLS negotiation: 5ms
-- Auth validation: 5ms
-- Business logic: 30ms
-- DB query: 30ms
-- Serialization: 10ms
 
----
+network: X ms
 
-## Fundamental Latency Equation
+TLS: X ms
 
-Total Latency =
-Network +
-Crypto +
-Application Logic +
-DB Execution +
-Serialization +
-Queueing Delay
+auth: X ms
 
-If any component is unknown → system is unmeasured.
+business logic: X ms
 
----
+DB: X ms
 
-## Syntax-Level Performance Rules
+serialization: X ms
 
-### 1. Avoid Blocking I/O
+queueing: X ms
 
-Bad (Node):
-fs.readFileSync()
+All components must be measured in production.
 
-Good:
-await fs.promises.readFile()
-
-Reason:
-Blocking calls halt the event loop → increases tail latency.
-
----
-
-### 2. Bound External Calls
-
-Every outbound call must include:
-
-- Timeout
-- Retry cap
-- Circuit breaker
-
-Example (pseudo):
-
-request({
-  timeout: 200ms,
-  retries: 3,
-  backoff: exponential
-})
-
-Unbounded calls destroy p99 latency.
-
----
-
-### 3. Query Structure Discipline
-
-Bad:
-SELECT * FROM users;
-
-Good:
-SELECT id, email FROM users WHERE id = ?;
-
-Reason:
-Minimize row width → reduces memory copy + serialization cost.
-
----
-
-### 4. Index Fundamentals
-
-Query:
-SELECT id FROM orders WHERE user_id = ?;
-
-Required index:
-CREATE INDEX idx_orders_user_id ON orders(user_id);
-
-Without index:
-→ Full table scan
-→ O(n)
-With index:
-→ B-tree lookup
-→ O(log n)
-
----
-
-# SECTION 3 — SECURITY FUNDAMENTALS
-
-Security is enforced at:
-
-1. Transport layer
-2. Authentication layer
-3. Authorization layer
-4. Input validation layer
-5. Data storage layer
-
----
-
-## Authentication Syntax Fundamentals
-
-JWT must validate:
-
-- Signature
-- Expiration
-- Issuer
-- Audience
-
-Pseudo-flow:
-
-1. Extract token
-2. Verify signature (RS256 public key)
-3. Validate exp < now
-4. Validate aud matches service
-5. Attach identity context
-
-Failure → reject request immediately.
-
----
-
-## Authorization Fundamentals
-
-Never:
-if (user.role == "admin") allow
-
-Always:
-checkPermission(user, "WRITE_REPORT")
-
-Reason:
-Role != permission.
-Explicit permission prevents privilege escalation.
-
----
-
-## Input Validation Mechanics
-
-Validation must:
-
-- Enforce schema
-- Reject unknown fields
-- Enforce max size
-
-Reason:
-Unknown fields → injection surface
-Large payloads → DoS vector
-
----
-
-## Rate Limiting Fundamentals
-
-Use token bucket or leaky bucket.
-
-Key design:
-limit = 100 req/min
-burst = 20
-
-Mechanism:
-- Each request consumes a token
-- Tokens refill per time window
-
-Prevents:
-- brute force
-- enumeration
-- resource exhaustion
-
----
-
-# SECTION 4 — DATABASE PERFORMANCE MECHANICS
-
-## Query Planning
-
-Every critical query must be evaluated using:
-
-EXPLAIN ANALYZE
-
-Review:
-- Index usage
-- Cost estimate
-- Row scan count
-- Execution time
-
----
-
-## N+1 Pattern Breakdown
-
-Bad:
-
-for user in users:
-  SELECT * FROM orders WHERE user_id = ?
-
-Effect:
-1 + N queries
-Latency grows linearly.
-
-Solution:
-JOIN or IN clause batching.
-
----
-
-## Connection Pool Fundamentals
-
-Why:
-Opening DB connection = TCP handshake + auth
-
-Rule:
-Pool size tuned to CPU cores and DB limits.
-
-Too small → queueing delay
-Too large → DB thrashing
-
----
-
-# SECTION 5 — CACHING MECHANICS
-
-## Cache Hierarchy
-
-L1: In-process (microseconds)
-L2: Redis (1–3ms)
-L3: Database (5–30ms)
-L4: External API (30–200ms)
-
----
-
-## Cache Invalidation Rules
-
-Each cached endpoint must define:
-
-- TTL
-- Write-through or write-behind
-- Explicit invalidation event
-
-No invalidation strategy → stale data risk.
-
----
-
-# SECTION 6 — THREAT MODEL FUNDAMENTALS
+Latency SLO (Hard Requirement)
 
 Define:
 
-Assets:
-- User data
-- Payment data
-- Tokens
-- Internal APIs
+p50 target
 
-Attackers:
-- Anonymous internet
-- Authenticated user
-- Insider
-- Compromised dependency
+p95 target
 
-Entry Points:
-- HTTP endpoints
-- Background workers
-- Webhooks
+p99 hard ceiling
 
-Trust Boundaries:
-- Public → API
-- API → DB
-- Service → Service
+error budget
 
-Worst Case:
-Define full breach scenario.
+Enforcement
 
----
+CI/CD must fail or alert when:
 
-# SECTION 7 — OBSERVABILITY MECHANICS
+p95 exceeds SLO
 
-Latency metrics must include:
+p99 > 2× SLO
 
-- p50
-- p95
-- p99
-- max
+Tail Latency Controls (Required)
 
-Why:
-Average latency hides tail risk.
+System must monitor and expose:
 
----
+event loop lag / thread pool saturation
 
-## Structured Logging Syntax
+lock contention
 
-Log format (JSON):
+GC pause time
+
+connection pool wait time
+
+retry amplification
+
+External Call Discipline (Required)
+
+Every outbound call must implement:
+
+timeout (adaptive)
+
+retry cap
+
+exponential backoff with jitter
+
+circuit breaker
+
+Retry Budget Rule
+
+Total retry traffic ≤ 20% of baseline traffic.
+
+Cold Start Measurement (Required)
+
+Services must export:
+
+startup latency
+
+first-request latency
+
+Alert if regression exceeds threshold.
+
+Payload Minimization (Required)
+
+Each endpoint must define:
+
+max request size
+
+max response size
+
+Requests exceeding limits → rejected early.
+
+SECTION 3 — DATABASE MECHANICS
+Query Discipline (Required)
+
+Rules:
+
+no SELECT * in production paths
+
+indexed access for all high-QPS queries
+
+bounded result sets
+
+pagination required for collections
+
+Query Guardrails (Required)
+
+System must implement:
+
+slow query log
+
+automatic EXPLAIN capture
+
+full table scan detector
+
+query fingerprint tracking
+
+per-query p95 monitoring
+
+Hard SLO
+
+p95 DB query latency < 50ms (unless justified).
+
+N+1 Prevention (Required)
+
+Detection via:
+
+query count per request metric
+
+ORM instrumentation or SQL tracing
+
+Threshold breaches must alert.
+
+Connection Pool Control
+
+Pool must expose:
+
+active connections
+
+wait queue length
+
+timeout count
+
+saturation %
+
+Auto-tuning policy must be documented.
+
+Hot Partition Detection (if sharded)
+
+Monitor:
+
+QPS per shard
+
+storage skew
+
+p95 per shard
+
+Automatic rebalancing trigger must exist.
+
+SECTION 4 — SECURITY ENFORCEMENT
+
+Security must be fail-closed.
+
+Transport Security
+
+Required:
+
+TLS 1.2+
+
+secure cipher suites
+
+HSTS (for public endpoints)
+
+Authentication (JWT Requirements)
+
+Must validate:
+
+signature (RS256 or stronger)
+
+expiration (exp)
+
+not-before (nbf)
+
+issuer (iss)
+
+audience (aud)
+
+algorithm allow-list
+
+key rotation support
+
+clock skew tolerance
+
+Failure → immediate reject.
+
+Authorization (Policy-Based)
+
+Must use explicit permission evaluation:
+
+allow = policyEngine.evaluate(subject, action, resource, context)
+
+Role-only checks are prohibited in critical paths.
+
+Input Validation (Strict)
+
+Validation must:
+
+enforce schema
+
+reject unknown fields
+
+normalize Unicode
+
+limit JSON depth
+
+cap array lengths
+
+guard against regex backtracking
+
+enforce payload size limits
+
+Rate Limiting (Multi-Dimensional)
+
+Must support:
+
+per-IP
+
+per-user
+
+per-token
+
+per-endpoint
+
+Must include burst control and dynamic throttling.
+
+Secrets Management
+
+Required:
+
+secrets stored in external manager
+
+no secrets in repo
+
+no secrets in logs
+
+automatic rotation supported
+
+SECTION 5 — CACHING MECHANICS
+Cache Hierarchy
+
+Define L1/L2/L3 usage and expected latency per tier.
+
+Cache Contract (Required)
+
+Each cached object must define:
+
+TTL
+
+jitter
+
+staleness tolerance
+
+invalidation authority
+
+write strategy (through/behind)
+
+Stampede Protection (Required)
+
+At least one must be implemented:
+
+single-flight
+
+request coalescing
+
+mutex lock
+
+probabilistic early refresh
+
+SECTION 6 — THREAT MODEL
+Assets
+
+Must enumerate:
+
+user data
+
+credentials
+
+tokens
+
+payment data
+
+internal APIs
+
+Attacker Classes
+
+Must include:
+
+anonymous internet
+
+authenticated user
+
+botnet
+
+credential stuffer
+
+insider
+
+compromised dependency
+
+Trust Boundaries
+
+Must map:
+
+public → API
+
+API → services
+
+services → database
+
+services → third parties
+
+Worst-Case Breach Scenario
+
+Document:
+
+maximum blast radius
+
+data exposed
+
+time to detect
+
+time to contain
+
+customer impact
+
+SECTION 7 — OBSERVABILITY
+Golden Signals (Mandatory)
+
+Track per service and dependency:
+
+latency
+
+traffic
+
+errors
+
+saturation
+
+Metrics Requirements
+
+Must expose:
+
+p50 / p95 / p99 / max
+
+4xx rate
+
+5xx rate
+
+auth failure rate
+
+retry rate
+
+queue depth
+
+Structured Logging
+
+Required JSON fields:
 
 {
   request_id,
+  trace_id,
   user_id,
   endpoint,
   latency_ms,
   status_code
 }
 
-Never log:
-- passwords
-- raw tokens
-- secret keys
+Sensitive data must be redacted.
 
----
+Distributed Tracing (Mandatory)
 
-# SECTION 8 — DEPLOYMENT HARDENING
+Trace context must propagate across services.
 
-Containers must:
+Alert Matrix (Required)
 
-- Run as non-root
-- Use minimal base image
-- Use read-only filesystem
-- Drop unused capabilities
+Alerts must include:
 
-Network must:
+fast SLO burn
 
-- Restrict DB to private subnet
-- Enforce service-level isolation
+slow SLO burn
 
----
+error spikes
 
-# PRODUCTION READINESS DEFINITION
+dependency latency regression
 
-A backend is production-ready only if it includes:
+auth anomaly detection
 
-1. Architecture overview
-2. Latency budget
-3. Threat model
-4. Caching strategy
-5. Index strategy
-6. Failure handling plan
-7. Observability plan
-8. Scaling strategy
-9. Syntax-level explanation of performance and security mechanisms
+Alerts must be tested in staging.
 
-Missing any → incomplete system.
+SECTION 8 — RESILIENCE & CONTROL LOOPS
+
+System must implement:
+
+circuit breakers
+
+load shedding
+
+backpressure
+
+graceful degradation
+
+retry budget enforcement
+
+Each must expose runtime tuning knobs.
+
+SECTION 9 — DEPLOYMENT HARDENING
+Container Requirements
+
+non-root user
+
+minimal base image
+
+read-only filesystem
+
+no-new-privileges
+
+drop unused capabilities
+
+seccomp profile
+
+CPU/memory limits
+
+Network Isolation Rules (Mandatory)
+
+database in private subnet
+
+no public DB access
+
+service allowlists enforced
+
+egress restrictions defined
+
+security groups least-privilege
+
+Service-to-Service Security (if multi-service)
+
+mTLS required
+
+service identity verified
+
+short-lived cert rotation
+
+PRODUCTION READINESS DEFINITION
+
+Deployment is blocked unless all sections are satisfied and measurable.
