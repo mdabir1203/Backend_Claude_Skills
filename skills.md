@@ -1,553 +1,571 @@
-Purpose
+# Backend Architecture Review Skill
 
-Define a secure, low-latency, production-grade backend architecture standard that is:
+## Purpose
 
-measurable
-
-enforceable
-
-observable
-
-failure-aware
-
-control-tunable
+Provide a structured framework for evaluating whether a backend architecture is **production-grade, secure, observable, resilient, and latency-aware**.
 
 A backend system is incomplete if it cannot explain:
 
-WHAT it does
+- WHAT it does
+- HOW it works
+- WHEN it fails
+- HOW it self-recovers
 
-HOW it works (protocol/runtime/query)
+This skill ensures backend designs are:
 
-WHEN it fails
+- measurable
+- enforceable
+- observable
+- failure-aware
+- control-tunable
 
-HOW it self-recovers
+---
 
-CORE PRINCIPLES
+# When To Use This Skill
 
-Secure by default (fail closed)
+Use this skill when evaluating or designing:
 
-Latency is a product feature
+- backend architectures
+- API systems
+- distributed systems
+- microservices
+- database-backed applications
+- production infrastructure
+- system design proposals
+- architecture review documents
 
-Tail latency is first-class
+Activate this skill when a request involves:
 
-Every claim must be measurable
+- system design
+- scalability
+- reliability
+- backend performance
+- infrastructure planning
+- production readiness
 
-Minimize attack surface and blast radius
+---
 
-Observability must enable causal debugging
+# Core Principles
 
-Every critical subsystem must expose control knobs
+All production systems must follow these rules:
 
-SECTION 1 — SYSTEM CLASSIFICATION
-Workload Profile (Required)
+- Security must be **fail-closed**
+- Latency is a **product feature**
+- Tail latency must be treated as **first-class**
+- All operational claims must be **measurable**
+- Observability must enable **causal debugging**
+- Systems must minimize **blast radius**
+- Critical subsystems must expose **control knobs**
 
-Document:
+---
 
-workload type (read-heavy / write-heavy / streaming / batch / hybrid)
+# Evaluation Process
 
-traffic shape (steady / spiky / diurnal / adversarial)
+When reviewing a backend architecture, evaluate the system using the following sections.
 
-current peak QPS
+---
 
-projected 12-month QPS
+# 1. System Classification
 
-worst-case spike multiplier
+## Workload Profile
 
-Mechanism Requirement
+Verify that the system defines:
 
-Autoscaling policy must reference the workload shape.
+- workload type  
+  (read-heavy / write-heavy / streaming / batch / hybrid)
 
-Consistency Model (Required)
+- traffic shape  
+  (steady / spiky / diurnal / adversarial)
 
-Define explicitly:
+- current peak QPS
 
-strong consistency zones
+- projected 12-month QPS
 
-eventual consistency zones
+- worst-case spike multiplier
 
-async boundaries
+If these are missing → **architecture is incomplete**
 
-reconciliation mechanism
+---
 
-maximum tolerated staleness window
+## Consistency Model
 
-Failure to define boundaries → design invalid
+Check that the design explicitly defines:
 
-Scaling Strategy (Required)
+- strong consistency zones
+- eventual consistency zones
+- async boundaries
+- reconciliation mechanism
+- maximum tolerated staleness window
 
-Must specify:
+Undefined boundaries → **invalid design**
 
-horizontal vs vertical
+---
 
-shard key (if applicable)
+## Scaling Strategy
 
-cache topology
+Verify the system defines:
 
-read replica policy
+- horizontal vs vertical scaling
+- shard key (if applicable)
+- cache topology
+- read replica strategy
+- backpressure strategy
 
-backpressure strategy
+---
 
-Failure Mode Matrix (Required)
+## Failure Mode Matrix
 
 Every critical component must document:
 
-Component	Failure Mode	Detection Signal	Automatic Mitigation	User Impact
+| Component | Failure Mode | Detection | Mitigation | User Impact |
+|----------|--------------|-----------|-----------|-------------|
 
-System without this → not production-ready
+If missing → **not production ready**
 
-SECTION 2 — LATENCY DISCIPLINE
-Latency Budget (Required)
+---
+
+# 2. Latency Discipline
+
+## Latency Budget
+
+Check for a defined latency budget.
 
 Example structure:
 
 Total Budget: 100ms
 
-network: X ms
+- network
+- TLS
+- auth
+- business logic
+- database
+- serialization
+- queueing
 
-TLS: X ms
+All latency components must be **measured in production**.
 
-auth: X ms
+---
 
-business logic: X ms
+## Latency SLO
 
-DB: X ms
+Verify the system defines:
 
-serialization: X ms
+- p50 target
+- p95 target
+- p99 ceiling
+- error budget
 
-queueing: X ms
+CI/CD should trigger alerts when:
 
-All components must be measured in production.
+- p95 exceeds SLO
+- p99 exceeds 2× SLO
 
-Latency SLO (Hard Requirement)
+---
 
-Define:
+## Tail Latency Controls
 
-p50 target
+Confirm monitoring exists for:
 
-p95 target
+- event loop lag
+- thread pool saturation
+- lock contention
+- GC pauses
+- connection pool wait time
+- retry amplification
 
-p99 hard ceiling
+---
 
-error budget
+## External Call Discipline
 
-Enforcement
+Every external dependency must implement:
 
-CI/CD must fail or alert when:
+- timeout
+- retry cap
+- exponential backoff with jitter
+- circuit breaker
 
-p95 exceeds SLO
+Retry traffic must remain:
 
-p99 > 2× SLO
+**≤ 20% of baseline traffic**
 
-Tail Latency Controls (Required)
+---
 
-System must monitor and expose:
+## Cold Start Measurement
 
-event loop lag / thread pool saturation
+Services must expose:
 
-lock contention
+- startup latency
+- first request latency
 
-GC pause time
+---
 
-connection pool wait time
+# 3. Database Mechanics
 
-retry amplification
+## Query Discipline
 
-External Call Discipline (Required)
+Ensure rules exist:
 
-Every outbound call must implement:
+- no `SELECT *` in production queries
+- indexed access for high-QPS queries
+- bounded result sets
+- pagination required
 
-timeout (adaptive)
+---
 
-retry cap
+## Query Guardrails
 
-exponential backoff with jitter
+System should implement:
 
-circuit breaker
+- slow query logging
+- automatic EXPLAIN capture
+- full table scan detection
+- query fingerprint tracking
+- per-query latency metrics
 
-Retry Budget Rule
+Target:
 
-Total retry traffic ≤ 20% of baseline traffic.
 
-Cold Start Measurement (Required)
+p95 DB query latency < 50ms
 
-Services must export:
 
-startup latency
+---
 
-first-request latency
+## N+1 Query Detection
 
-Alert if regression exceeds threshold.
+Detection methods may include:
 
-Payload Minimization (Required)
+- query count per request
+- ORM instrumentation
+- SQL tracing
 
-Each endpoint must define:
+---
 
-max request size
+## Connection Pool Control
 
-max response size
+Pools must expose metrics:
 
-Requests exceeding limits → rejected early.
+- active connections
+- wait queue
+- timeout count
+- saturation percentage
 
-SECTION 3 — DATABASE MECHANICS
-Query Discipline (Required)
+---
 
-Rules:
+## Hot Partition Detection
 
-no SELECT * in production paths
+If sharded, monitor:
 
-indexed access for all high-QPS queries
+- QPS per shard
+- storage imbalance
+- latency per shard
 
-bounded result sets
+---
 
-pagination required for collections
+# 4. Security Enforcement
 
-Query Guardrails (Required)
+Security must be **fail-closed**.
 
-System must implement:
+---
 
-slow query log
+## Transport Security
 
-automatic EXPLAIN capture
+Verify:
 
-full table scan detector
+- TLS 1.2+
+- secure cipher suites
+- HSTS enabled for public endpoints
 
-query fingerprint tracking
+---
 
-per-query p95 monitoring
+## Authentication
 
-Hard SLO
+JWT validation must include:
 
-p95 DB query latency < 50ms (unless justified).
+- signature verification
+- expiration
+- not-before
+- issuer
+- audience
+- algorithm allow list
+- key rotation support
 
-N+1 Prevention (Required)
+Failure → **reject request**
 
-Detection via:
+---
 
-query count per request metric
+## Authorization
 
-ORM instrumentation or SQL tracing
+Authorization must use **policy-based evaluation**.
 
-Threshold breaches must alert.
+Example model:
 
-Connection Pool Control
 
-Pool must expose:
+allow = policyEngine.evaluate(
+subject,
+action,
+resource,
+context
+)
 
-active connections
 
-wait queue length
+Role-only checks are insufficient for critical paths.
 
-timeout count
+---
 
-saturation %
+## Input Validation
 
-Auto-tuning policy must be documented.
+Inputs must enforce:
 
-Hot Partition Detection (if sharded)
+- schema validation
+- rejection of unknown fields
+- Unicode normalization
+- JSON depth limits
+- array size limits
+- regex backtracking protection
+- payload size limits
 
-Monitor:
+---
 
-QPS per shard
+## Rate Limiting
 
-storage skew
+Verify support for:
 
-p95 per shard
+- per-IP limits
+- per-user limits
+- per-token limits
+- per-endpoint limits
 
-Automatic rebalancing trigger must exist.
+Burst control and adaptive throttling must exist.
 
-SECTION 4 — SECURITY ENFORCEMENT
+---
 
-Security must be fail-closed.
+## Secrets Management
 
-Transport Security
+Check that:
 
-Required:
+- secrets are stored externally
+- secrets never appear in logs
+- secrets are not stored in repos
+- automatic rotation exists
 
-TLS 1.2+
+---
 
-secure cipher suites
+# 5. Caching Mechanics
 
-HSTS (for public endpoints)
+## Cache Hierarchy
 
-Authentication (JWT Requirements)
+Design should define:
 
-Must validate:
+- L1 cache (in-process)
+- L2 cache (distributed)
+- L3 cache (persistent)
 
-signature (RS256 or stronger)
+---
 
-expiration (exp)
+## Cache Contracts
 
-not-before (nbf)
+Each cached object must specify:
 
-issuer (iss)
+- TTL
+- jitter
+- staleness tolerance
+- invalidation authority
+- write strategy
 
-audience (aud)
+---
 
-algorithm allow-list
+## Stampede Protection
 
-key rotation support
+System must implement at least one:
 
-clock skew tolerance
+- request coalescing
+- single-flight
+- mutex lock
+- probabilistic refresh
 
-Failure → immediate reject.
+---
 
-Authorization (Policy-Based)
+# 6. Threat Model
 
-Must use explicit permission evaluation:
+## Assets
 
-allow = policyEngine.evaluate(subject, action, resource, context)
+Verify the system identifies critical assets:
 
-Role-only checks are prohibited in critical paths.
+- user data
+- credentials
+- authentication tokens
+- payment information
+- internal APIs
 
-Input Validation (Strict)
+---
 
-Validation must:
+## Attacker Classes
 
-enforce schema
+Threat model must include:
 
-reject unknown fields
+- anonymous internet attackers
+- authenticated malicious users
+- botnets
+- credential stuffing attackers
+- insiders
+- compromised dependencies
 
-normalize Unicode
+---
 
-limit JSON depth
+## Trust Boundaries
 
-cap array lengths
+Architecture must define boundaries:
 
-guard against regex backtracking
+- public → API
+- API → services
+- services → database
+- services → third parties
 
-enforce payload size limits
+---
 
-Rate Limiting (Multi-Dimensional)
-
-Must support:
-
-per-IP
-
-per-user
-
-per-token
-
-per-endpoint
-
-Must include burst control and dynamic throttling.
-
-Secrets Management
-
-Required:
-
-secrets stored in external manager
-
-no secrets in repo
-
-no secrets in logs
-
-automatic rotation supported
-
-SECTION 5 — CACHING MECHANICS
-Cache Hierarchy
-
-Define L1/L2/L3 usage and expected latency per tier.
-
-Cache Contract (Required)
-
-Each cached object must define:
-
-TTL
-
-jitter
-
-staleness tolerance
-
-invalidation authority
-
-write strategy (through/behind)
-
-Stampede Protection (Required)
-
-At least one must be implemented:
-
-single-flight
-
-request coalescing
-
-mutex lock
-
-probabilistic early refresh
-
-SECTION 6 — THREAT MODEL
-Assets
-
-Must enumerate:
-
-user data
-
-credentials
-
-tokens
-
-payment data
-
-internal APIs
-
-Attacker Classes
-
-Must include:
-
-anonymous internet
-
-authenticated user
-
-botnet
-
-credential stuffer
-
-insider
-
-compromised dependency
-
-Trust Boundaries
-
-Must map:
-
-public → API
-
-API → services
-
-services → database
-
-services → third parties
-
-Worst-Case Breach Scenario
+## Worst Case Breach Scenario
 
 Document:
 
-maximum blast radius
+- maximum blast radius
+- exposed data
+- detection time
+- containment time
+- customer impact
 
-data exposed
+---
 
-time to detect
+# 7. Observability
 
-time to contain
+## Golden Signals
 
-customer impact
+Every service must track:
 
-SECTION 7 — OBSERVABILITY
-Golden Signals (Mandatory)
+- latency
+- traffic
+- errors
+- saturation
 
-Track per service and dependency:
+---
 
-latency
+## Required Metrics
 
-traffic
+Expose:
 
-errors
+- p50
+- p95
+- p99
+- max latency
+- error rate
+- retry rate
+- queue depth
 
-saturation
+---
 
-Metrics Requirements
+## Structured Logging
 
-Must expose:
+Required fields:
 
-p50 / p95 / p99 / max
 
-4xx rate
+request_id
+trace_id
+user_id
+endpoint
+latency_ms
+status_code
 
-5xx rate
-
-auth failure rate
-
-retry rate
-
-queue depth
-
-Structured Logging
-
-Required JSON fields:
-
-{
-  request_id,
-  trace_id,
-  user_id,
-  endpoint,
-  latency_ms,
-  status_code
-}
 
 Sensitive data must be redacted.
 
-Distributed Tracing (Mandatory)
+---
+
+## Distributed Tracing
 
 Trace context must propagate across services.
 
-Alert Matrix (Required)
+Trace spans should include:
 
-Alerts must include:
+- service name
+- operation name
+- dependency latency
+- retry attempts
+- errors
 
-fast SLO burn
+---
 
-slow SLO burn
+# 8. Resilience and Control Loops
 
-error spikes
+Systems must implement:
 
-dependency latency regression
-
-auth anomaly detection
-
-Alerts must be tested in staging.
-
-SECTION 8 — RESILIENCE & CONTROL LOOPS
-
-System must implement:
-
-circuit breakers
-
-load shedding
-
-backpressure
-
-graceful degradation
-
-retry budget enforcement
+- circuit breakers
+- load shedding
+- backpressure
+- graceful degradation
+- retry budget enforcement
 
 Each must expose runtime tuning knobs.
 
-SECTION 9 — DEPLOYMENT HARDENING
-Container Requirements
+---
 
-non-root user
+# 9. Deployment Hardening
 
-minimal base image
+## Container Security
 
-read-only filesystem
+Containers must run with:
 
-no-new-privileges
+- non-root user
+- minimal base image
+- read-only filesystem
+- dropped capabilities
+- seccomp profile
+- resource limits
 
-drop unused capabilities
+---
 
-seccomp profile
+## Network Isolation
 
-CPU/memory limits
+Verify:
 
-Network Isolation Rules (Mandatory)
+- database in private subnet
+- no public database access
+- service allowlists
+- egress restrictions
+- least privilege security groups
 
-database in private subnet
+---
 
-no public DB access
+## Service-to-Service Security
 
-service allowlists enforced
+If multiple services exist:
 
-egress restrictions defined
+- mTLS required
+- verified service identity
+- short-lived certificate rotation
 
-security groups least-privilege
+---
 
-Service-to-Service Security (if multi-service)
+# Production Readiness Criteria
 
-mTLS required
+A backend system is **not production ready** unless:
 
-service identity verified
+- latency SLO defined
+- failure modes documented
+- observability implemented
+- threat model completed
+- rate limiting enforced
+- runbooks documented
+- security controls verified
 
-short-lived cert rotation
+Deployment should be **blocked** if these requirements are not met.
 
-PRODUCTION READINESS DEFINITION
+---
 
-Deployment is blocked unless all sections are satisfied and measurable.
+# Output Format When Using This Skill
+
+When applying this skill, Claude should produce:
+
+1. Architecture evaluation summary
+2. Missing requirements
+3. Identified risks
+4. Recommended improvements
+5. Production readiness score
