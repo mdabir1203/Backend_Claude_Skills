@@ -1,452 +1,241 @@
-Production Readiness Gate
-Security, Latency, Resilience & Deployment Approval Standard
-Purpose
+# 🚀 Production Readiness Gate – GitHub Checklist Template
 
-This document defines the final approval gate required before deploying backend systems to production.
+**Purpose:** Ensure backend systems meet all security, latency, resilience, and operational standards before production deployment.
 
-The goal is to ensure systems are:
+---
 
-Secure
+## 1️⃣ Architecture Review
 
-Observable
+- [ ] Workload classification documented
+- [ ] Traffic shape defined
+- [ ] Consistency boundaries defined
+- [ ] Scaling strategy documented
+- [ ] Failure mode matrix complete
+- [ ] Mechanism explanations included
+
+### Workload Documentation
+- [ ] Workload type (read-heavy / write-heavy / streaming / batch / hybrid)
+- [ ] Traffic shape (steady / spiky / diurnal / adversarial)
+- [ ] Peak QPS defined
+- [ ] Projected 12-month QPS defined
+- [ ] Worst-case spike multiplier defined
+
+---
 
-Low latency
+## 2️⃣ Latency Discipline
+
+- [ ] Latency budget defined
+- [ ] p95 latency within SLO
+- [ ] p99 latency < 2× SLO
+- [ ] Tail latency metrics instrumented
 
-Failure aware
+### External Dependencies
+- [ ] Timeouts configured for all external calls
+- [ ] Retries capped with exponential backoff & jitter
+- [ ] Retry budget enforced
+- [ ] Circuit breakers implemented
+- [ ] Retry traffic ≤ 20% of baseline
+
+### Runtime Performance
+- [ ] Blocking I/O avoided
+- [ ] Cold start latency measured
+- [ ] Payload size limits enforced
 
-Operationally controllable
+---
 
-Deployment must not proceed unless all critical sections pass.
+## 3️⃣ Database Mechanics
 
-Gate Evaluation Process
+- [ ] All high-QPS queries indexed
+- [ ] EXPLAIN plans reviewed
+- [ ] No full table scans in hot paths
+- [ ] Query guardrails active
+- [ ] No N+1 query patterns
+- [ ] p95 DB query < 50ms (or justified)
+- [ ] Connection pool telemetry exposed
+- [ ] Pool saturation monitored
+- [ ] Hot shard detection (if sharding) implemented
 
-Every system must pass the following evaluations:
+---
 
-Architecture Review
+## 4️⃣ Security Enforcement
 
-Latency Discipline
+### Transport Security
+- [ ] TLS enforced
 
-Database Mechanics
+### Authentication
+- [ ] JWT signature verified
+- [ ] JWT `exp` validated
+- [ ] JWT `nbf` validated
+- [ ] Issuer validated
+- [ ] Audience validated
+- [ ] Algorithm allow-listed
 
-Security Enforcement
+### Authorization
+- [ ] Explicit permission checks implemented
 
-Threat Modeling
+### Input Validation
+- [ ] Input schema enforced
+- [ ] Unknown fields rejected
+- [ ] Payload size limited
 
-Observability
+### Abuse Protection
+- [ ] Rate limiting active (per-IP / per-user / per-token / per-endpoint)
 
-Resilience Controls
+### Secrets Management
+- [ ] Secrets externally managed
+- [ ] No secrets in logs or repos
 
-Deployment Hardening
+---
 
-Chaos Testing
+## 5️⃣ Threat Model
 
-Production Scorecard
+- [ ] Assets identified
+- [ ] Attacker classes defined
+- [ ] Entry points listed
+- [ ] Trust boundaries mapped
+- [ ] Worst-case breach documented
+- [ ] Blast radius analyzed
+- [ ] Mitigations documented
 
-If any critical section fails → deployment is blocked.
+---
 
-1. Architecture Review
-System Design Validation
+## 6️⃣ Observability
 
-Workload classification documented
+### Golden Signals
+- [ ] Latency instrumented
+- [ ] Traffic monitored
+- [ ] Error rate monitored
+- [ ] Saturation monitored
 
-Traffic shape defined
+### Metrics Coverage
+- [ ] p50, p95, p99 monitored
+- [ ] 4xx / 5xx rates monitored
+- [ ] Auth failures monitored
+- [ ] Retry rate monitored
 
-Consistency boundaries defined
+### Logging
+- [ ] Structured logging enabled
+- [ ] Required fields: `request_id`, `trace_id`, `user_id`, `endpoint`, `latency_ms`, `status_code`
+- [ ] Sensitive fields redacted
 
-Scaling strategy documented
+### Distributed Tracing
+- [ ] Trace propagation verified
 
-Failure mode matrix complete
+### Alerting
+- [ ] Alert matrix defined
+- [ ] Alerts tested
 
-Mechanism explanations included
+---
 
-Workload Documentation
+## 7️⃣ Resilience Controls
 
-The system must define:
+- [ ] Circuit breakers active
+- [ ] Load shedding implemented
+- [ ] Backpressure enforced
+- [ ] Graceful degradation defined
+- [ ] Runtime control knobs exposed
+- [ ] Retry storm protection active
 
-Workload Type
+---
 
-Read-heavy
+## 8️⃣ Deployment Hardening
 
-Write-heavy
+### Container Security
+- [ ] Non-root containers
+- [ ] Minimal base image
+- [ ] Read-only filesystem
+- [ ] seccomp applied
+- [ ] no-new-privileges enabled
 
-Streaming
+### Resource Safety
+- [ ] CPU limits defined
+- [ ] Memory limits defined
 
-Batch
+### Network Security
+- [ ] Security groups restricted
+- [ ] No public database access
+- [ ] Network allowlists enforced
 
-Hybrid
+### Service Security
+- [ ] mTLS enabled (if multi-service)
 
-Traffic Shape
+---
 
-Steady
+## 9️⃣ Chaos Engineering Tests
 
-Spiky
+- [ ] Database outage simulation
+- [ ] Cache failure simulation
+- [ ] Dependency timeout simulation
+- [ ] Traffic spike simulation
+- [ ] Queue backlog simulation
 
-Diurnal
+### Chaos Evaluation Criteria
+- [ ] Service degradation is graceful
+- [ ] Cascading failures prevented
+- [ ] Automatic recovery occurs
+- [ ] Alerts trigger correctly
 
-Adversarial
+---
 
-Capacity Planning
+## 🔟 Production Readiness Scorecard
 
-Peak QPS
+| Category | Score (0-100) |
+|----------|---------------|
+| Security |               |
+| Latency |               |
+| Observability |         |
+| Resilience |            |
+| Infrastructure Hardening | |
 
-Projected 12-month QPS
+**Minimum required score:** 85
 
-Worst-case spike multiplier
+---
 
-2. Latency Discipline
-Latency Budget
+## ✅ Automated CI/CD Gate
 
-Example structure:
+- [ ] `ci/security-check`
+- [ ] `ci/latency-slo-check`
+- [ ] `ci/observability-check`
+- [ ] `ci/container-security-check`
+- [ ] `ci/dependency-scan`
+- [ ] `ci/static-analysis`
 
-Total Budget: 100ms
+> If any check fails → deployment blocked.
 
-network
-TLS
-authentication
-business logic
-database
-serialization
-queueing
-Latency Control Checklist
+---
 
-Latency budget defined
+## 🛠 Final Approval Gate
 
-p95 within SLO
+| Category | Status (PASS/FAIL) |
+|----------|------------------|
+| Security |                  |
+| Latency |                  |
+| Observability |            |
+| Resilience |               |
+| Control Loops |            |
+| Tail Safety |              |
+| Mechanism Verified |       |
 
-p99 < 2× SLO
+### Deployment Decision
+- [ ] Approved for Production
+- [ ] Deployment Blocked
 
-Tail latency metrics instrumented
+### Reviewer Sign-Off
 
-External Dependency Safety
+| Role | Name | Date |
+|------|------|------|
+| Architecture Reviewer | | |
+| Security Reviewer | | |
+| SRE Reviewer | | |
+| Final Approver | | |
 
-All external calls must have:
+---
 
-Timeouts
+## 📝 Post-Deployment Requirements (within 7 days)
 
-Retries capped
+- [ ] Review system latency
+- [ ] Validate error budgets
+- [ ] Repeat chaos testing
+- [ ] Verify incident response readiness
 
-Exponential backoff with jitter
-
-Retry budget enforced
-
-Circuit breakers implemented
-
-Retry traffic must remain:
-
-≤ 20% of baseline traffic
-Runtime Performance
-
-Blocking I/O avoided
-
-Cold start latency measured
-
-Payload size limits enforced
-
-3. Database Mechanics
-Query Safety
-
-All high-QPS queries indexed
-
-EXPLAIN plans reviewed
-
-No full table scans in hot paths
-
-Query guardrails active
-
-Query Efficiency
-
-No N+1 query patterns
-
-p95 DB query < 50ms (or justified)
-
-Connection Pool Control
-
-Connection pool telemetry exposed
-
-Pool saturation monitored
-
-Sharding (If Applicable)
-
-Hot shard detection implemented
-
-4. Security Enforcement
-
-Security must be fail-closed.
-
-Transport Security
-
-TLS enforced
-
-Authentication
-
-JWT validation must include:
-
-Signature verified
-
-exp validated
-
-nbf validated
-
-Issuer validated
-
-Audience validated
-
-Algorithm allow-listed
-
-Authorization
-
-Explicit permission checks must be implemented.
-
-Example model:
-
-allow = policyEngine.evaluate(
-    subject,
-    action,
-    resource,
-    context
-)
-Input Validation
-
-Input schema enforced
-
-Unknown fields rejected
-
-Payload size limited
-
-Abuse Protection
-
-Rate limiting must support:
-
-Per-IP
-
-Per-user
-
-Per-token
-
-Per-endpoint
-
-Secrets Management
-
-Secrets externally managed
-
-No secrets in logs
-
-No secrets in repositories
-
-5. Threat Model
-Security Analysis
-
-Assets identified
-
-Attacker classes defined
-
-Entry points listed
-
-Trust boundaries mapped
-
-Breach Analysis
-
-Worst-case breach documented
-
-Blast radius analyzed
-
-Mitigations documented
-
-6. Observability
-Golden Signals
-
-Latency instrumented
-
-Traffic monitored
-
-Error rate monitored
-
-Saturation monitored
-
-Metrics Coverage
-
-p50 monitored
-
-p95 monitored
-
-p99 monitored
-
-4xx rate monitored
-
-5xx rate monitored
-
-Auth failures monitored
-
-Retry rate monitored
-
-Logging
-
-Structured logging must be enabled.
-
-Required fields:
-
-request_id
-
-trace_id
-
-user_id
-
-endpoint
-
-latency_ms
-
-status_code
-
-Sensitive fields must be redacted.
-
-Distributed Tracing
-
-Trace propagation verified
-
-Alerting
-
-Alert matrix defined
-
-Alerts tested
-
-7. Resilience Controls
-Failure Containment
-
-Circuit breakers active
-
-Load shedding implemented
-
-Backpressure enforced
-
-Graceful degradation defined
-
-Control Systems
-
-Runtime control knobs exposed
-
-Retry storm protection active
-
-8. Deployment Hardening
-Container Security
-
-Non-root containers
-
-Minimal base image
-
-Read-only filesystem
-
-seccomp applied
-
-no-new-privileges enabled
-
-Resource Safety
-
-CPU limits defined
-
-Memory limits defined
-
-Network Security
-
-Security groups restricted
-
-No public database access
-
-Network allowlists enforced
-
-Service Security
-
-mTLS enabled (if multi-service)
-
-9. Chaos Engineering Test Plan
-
-Systems must demonstrate resilience under controlled failure conditions.
-
-Required Chaos Tests
-
-Database outage simulation
-
-Cache failure simulation
-
-Dependency timeout simulation
-
-Traffic spike simulation
-
-Queue backlog simulation
-
-Chaos Evaluation Criteria
-
-The system must prove:
-
-Service degradation is graceful
-
-Cascading failures prevented
-
-Automatic recovery occurs
-
-Alerts trigger correctly
-
-10. Production Readiness Scorecard
-
-Each category is scored.
-
-Category	Score (0–100)
-Security	
-Latency	
-Observability	
-Resilience	
-Infrastructure Hardening	
-Minimum Required Score
-Production Threshold = 85
-Automated CI/CD Gate
-
-CI pipelines must run the following checks:
-
-ci/security-check
-
-ci/latency-slo-check
-
-ci/observability-check
-
-ci/container-security-check
-
-ci/dependency-scan
-
-ci/static-analysis
-
-If any check fails → deployment blocked.
-
-Final Approval Gate
-Category	Status
-Security	PASS / FAIL
-Latency	PASS / FAIL
-Observability	PASS / FAIL
-Resilience	PASS / FAIL
-Control Loops	PASS / FAIL
-Tail Safety	PASS / FAIL
-Mechanism Verified	PASS / FAIL
-Deployment Decision
-
-If any category fails, deployment must be blocked.
-
-Decision	Status
-Approved for Production	YES / NO
-Deployment Blocked	YES / NO
-Reviewer Sign-Off
-Role	Name	Date
-Architecture Reviewer		
-Security Reviewer		
-SRE Reviewer		
-Final Approver		
-Post-Deployment Requirement
-
-Within 7 days of production launch:
-
-System latency must be reviewed
-
-Error budgets validated
-
-Chaos testing repeated
-
-Incident response readiness verified
-
-Failure to complete post-deployment validation requires a risk review.
+> Failure to complete post-deployment validation requires a risk review.
